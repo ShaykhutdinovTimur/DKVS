@@ -27,7 +27,11 @@ public class Node implements Runnable, AutoCloseable {
         incomingMessages = new LinkedBlockingDeque<>();
         outcomingMessages = new ArrayList<>();
         for (int i = 0; i < Config.getNodesCount(); i++) {
-            outcomingMessages.add(new LinkedBlockingDeque<Message>());
+            if (i != id) {
+                outcomingMessages.add(new LinkedBlockingDeque<Message>());
+            } else {
+                outcomingMessages.add(incomingMessages);
+            }
         }
         clients = new HashMap<>();
         logger = new Logger(id);
@@ -54,7 +58,6 @@ public class Node implements Runnable, AutoCloseable {
         if (started)
             throw new IllegalStateException("Cannot start a node twice");
         started = true;
-
         logger.connection("run()", "starting node");
         connectionHandler.run();
     }

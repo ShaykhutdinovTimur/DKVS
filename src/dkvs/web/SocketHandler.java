@@ -13,7 +13,8 @@ import java.io.OutputStreamWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.LinkedBlockingQueue;
+
+import static java.lang.Thread.sleep;
 
 public class SocketHandler implements AutoCloseable {
 
@@ -21,33 +22,21 @@ public class SocketHandler implements AutoCloseable {
     Socket input = null;
     Socket output = null;
     LinkedBlockingDeque<Message> outputMessages = new LinkedBlockingDeque<>();
-    LinkedBlockingQueue<Message> inputMessages = new LinkedBlockingQueue<>();
+    LinkedBlockingDeque<Message> inputMessages;
     Logger logger;
     private int senderId, addressId;
 
-    /**
-     * if you want connection to client to == -1
-     *
-     * @param from
-     * @param to
-     */
-    public SocketHandler(int from, int to, Socket inputSocket, Logger logger) {
+    public SocketHandler(int from, int to, Socket inputSocket, Logger logger, LinkedBlockingDeque<Message> inputMessages) {
         senderId = from;
         addressId = to;
         input = inputSocket;
+        this.inputMessages = inputMessages;
         this.logger = logger;
-        new Thread(() -> {
-            if (addressId == -1) {
-                //client connection
-                try (OutputStreamWriter writer = new OutputStreamWriter(input.getOutputStream(), CHARSET)) {
-                    speakToWriter(writer);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            } else {
+        if (from != to) {
+            new Thread(() -> {
                 speak();
-            }
-        }).start();
+            }).start();
+        }
     }
 
     public void resetInput(Socket inputSocket) {
@@ -76,12 +65,15 @@ public class SocketHandler implements AutoCloseable {
         while (true) {
             try {
                 String data = breader.readLine();
+                if (data == null) {
+                    break;
+                }
                 Message m = Message.parse(addressId, data.split(" "));
                 if (m instanceof Ping) {
                     outputMessages.add(new Pong(senderId));
                 } else if (!(m instanceof Pong)) {
-                    logger.messageIn("listenToNode(nodeId:" + addressId + ")",
-                            "GOT message [" + m + "] from " + addressId);
+                    logger.messageIn("listen on node" + senderId,
+                            "GOT message [" + m + "] from " + m.getSource());
                     inputMessages.add(m);
                 }
             } catch (IOException e) {
@@ -101,7 +93,7 @@ public class SocketHandler implements AutoCloseable {
                     writer.flush();
                     if (!(m instanceof Ping) && !(m instanceof Pong))
                         logger.messageOut("speakToNode(nodeId: " + addressId + ")",
-                                String.format("SENT to %d: %s", addressId, m));
+                                String.format("SENT from %d to %d: %s", senderId, addressId, m));
                 } catch (IOException ioe) {
                     logger.error("speakToNode(nodeId: " + addressId + ")",
                             String.format("Couldn't send a message from %d to %d. Retrying.",
@@ -115,22 +107,35 @@ public class SocketHandler implements AutoCloseable {
         }
     }
 
-    public void speak() {
+    private void speak() {
         String address = Config.getHost(addressId);
-        int port = Config.getPort(addressId);
-        while (true) {
-            try {
-                resetOutput(new Socket());
-                Socket clientSocket = output;
-                clientSocket.connect(new InetSocketAddress(address, port));
-                logger.connection("speakToNode(nodeId: " + addressId + ")",
-                        String.format("#%d: CONNECTED to node.%d", this.addressId, addressId));
-                outputMessages.addFirst(new NodeMessage(senderId));
-                speakToWriter(new OutputStreamWriter(clientSocket.getOutputStream(), CHARSET));
+        if (address == null) {
+            try (OutputStreamWriter writer = new OutputStreamWriter(input.getOutputStream(), CHARSET)) {
+                speakToWriter(writer);
             } catch (IOException e) {
-                logger.error("speakToNode(nodeId: " + addressId + ")",
-                        String.format("Connection from %d to node.%d lost: %s",
-                                addressId, addressId, e.getMessage()));
+                e.printStackTrace();
+            }
+        } else {
+            int port = Config.getPort(addressId);
+            while (true) {
+                try {
+                    resetOutput(new Socket());
+                    Socket clientSocket = output;
+                    clientSocket.connect(new InetSocketAddress(address, port));
+                    logger.connection("speakToNode(nodeId: " + addressId + ")",
+                            String.format("#%d: CONNECTED to node.%d", this.addressId, addressId));
+                    outputMessages.addFirst(new NodeMessage(senderId));
+                    speakToWriter(new OutputStreamWriter(clientSocket.getOutputStream(), CHARSET));
+                } catch (IOException e) {
+                    logger.error("speakToNode(nodeId: " + addressId + ")",
+                            String.format("Connection from %d to node.%d lost: %s",
+                                    addressId, addressId, e.getMessage()));
+                    try {
+                        sleep(Config.getTimeout());
+                    } catch (InterruptedException e1) {
+                        e1.printStackTrace();
+                    }
+                }
             }
         }
     }

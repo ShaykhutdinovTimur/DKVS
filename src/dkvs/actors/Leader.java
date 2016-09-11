@@ -62,19 +62,15 @@ public class Leader {
                 logger.error("Leader::receiveMessage()", "slot " +
                         ((ProposeMessage) message).getSlot() + " already used!");
             }
-        }
-        if (message instanceof PhaseOneResponse) {
+        } else if (message instanceof PhaseOneResponse) {
             Ballot ballot = ((PhaseOneResponse) message).getOriginalBallot();
             Scout scout = scouts.get(ballot);
             scout.receiveResponse((PhaseOneResponse) message);
-        }
-
-        if (message instanceof PhaseTwoResponse) {
+        } else if (message instanceof PhaseTwoResponse) {
             Proposal proposal = ((PhaseTwoResponse) message).getProposal();
             Commander commander = commanders.get(proposal);
             commander.receiveResponse((PhaseTwoResponse) message);
         }
-
     }
 
     private void preempted(Ballot b) {
@@ -88,7 +84,7 @@ public class Leader {
     }
 
     private void adopted(Ballot ballot, Map<Integer, Proposal> pvalues) {
-        logger.paxos(String.format("ADOPTED with ballot %s", ballot));
+        logger.paxos(String.format("LEADER %d ADOPTED with ballot %s", id, ballot));
 
         for (Map.Entry<Integer, Proposal> entry : pvalues.entrySet()) {
             Integer key = entry.getKey();
@@ -96,7 +92,6 @@ public class Leader {
             proposals.put(key, value.getCommand());
         }
         currentLeader = id;
-
         for (Map.Entry<Integer, Command> entry : proposals.entrySet()) {
             Integer key = entry.getKey();
             Command value = entry.getValue();

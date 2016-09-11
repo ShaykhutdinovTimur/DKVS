@@ -47,7 +47,7 @@ public class ActorSystem {
             try {
                 Message m = incomingMessages.take();
 
-                logger.messageIn("handleMessages()", String.format("Handling message: %s", m));
+                logger.messageIn("handleMessages()", String.format("Handling message %s on %d from %d", m, id, m.getSource()));
                 if (m instanceof DisconnectMessage) {
                     leader.notifyFault(m.getSource());
                 } else if (m instanceof ReplicaMessage) {
@@ -68,20 +68,7 @@ public class ActorSystem {
     }
 
     public void sendToNode(int to, Message message) {
-        boolean sent = false;
-        while (!sent) {
-            try {
-                if (to == id) {
-                    incomingMessages.put(message);
-                } else {
-                    outcomingMessages.get(to).put(message);
-                }
-                sent = true;
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-                break;
-            }
-        }
+        outcomingMessages.get(to).add(message);
     }
 
     public void sendToAll(Message message) {
@@ -91,6 +78,10 @@ public class ActorSystem {
     }
 
     public void sendToClient(int to, Message message) {
-        clients.get(to).send(message);
+        try {
+            clients.get(to).send(message);
+        } catch (NullPointerException e) {
+
+        }
     }
 }

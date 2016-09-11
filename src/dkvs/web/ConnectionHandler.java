@@ -11,7 +11,6 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -28,6 +27,7 @@ public class ConnectionHandler {
     private ServerSocket inSocket = null;
     private volatile boolean started = false;
     private volatile boolean stopping = false;
+    private int clientID = Config.getNodesCount();
     //private Timer timer;
 
 
@@ -45,7 +45,7 @@ public class ConnectionHandler {
             logger = new Logger(id);
 
             for (int i = 0; i < Config.getNodesCount(); ++i) {
-                nodes.add(new SocketHandler(id, i, null, logger));
+                nodes.add(new SocketHandler(id, i, null, logger, incomingMessages));
                 nodes.get(i).outputMessages = outcomingMessages.get(i);
             }
             nodes.get(id).outputMessages = incomingMessages;
@@ -100,7 +100,7 @@ public class ConnectionHandler {
             String msg = bufferedReader.readLine();
             String[] parts = msg.split(" ");
 
-            logger.messageIn("handleRequest():", "GOT message [" + msg + "] with request from");
+            logger.messageIn("handleRequest():", "GOT request [" + msg + "]");
 
             switch (parts[0]) {
                 case "node":
@@ -114,10 +114,8 @@ public class ConnectionHandler {
                 case "get":
                 case "set":
                 case "delete":
-                    final int newClientId = (clients.keySet().size() == 0) ? 1 :
-                            (clients.keySet().stream().max(Comparator.naturalOrder()).get()) + 1;
-
-                    SocketHandler entry = new SocketHandler(id, -1, client, logger);
+                    final int newClientId = clientID++;
+                    SocketHandler entry = new SocketHandler(id, newClientId, client, logger, incomingMessages);
                     clients.put(newClientId, entry);
                     Message firstMessage = ClientRequest.parse(newClientId, parts);
                     incomingMessages.add(firstMessage);

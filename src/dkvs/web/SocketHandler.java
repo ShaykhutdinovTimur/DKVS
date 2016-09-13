@@ -24,6 +24,9 @@ public class SocketHandler implements AutoCloseable {
     LinkedBlockingDeque<Message> outputMessages = new LinkedBlockingDeque<>();
     LinkedBlockingDeque<Message> inputMessages;
     Logger logger;
+    long lastResponse;
+    boolean alive = false;
+    volatile boolean reconnect = false;
     private int senderId, addressId;
 
     public SocketHandler(int from, int to, Socket inputSocket, Logger logger, LinkedBlockingDeque<Message> inputMessages) {
@@ -31,12 +34,17 @@ public class SocketHandler implements AutoCloseable {
         addressId = to;
         input = inputSocket;
         this.inputMessages = inputMessages;
+        lastResponse = System.currentTimeMillis();
         this.logger = logger;
         if (from != to) {
             new Thread(() -> {
                 speak();
             }).start();
         }
+    }
+
+    public long getLastResponse() {
+        return lastResponse;
     }
 
     public void resetInput(Socket inputSocket) {
@@ -64,6 +72,7 @@ public class SocketHandler implements AutoCloseable {
     public void listen(BufferedReader breader) {
         while (true) {
             try {
+                lastResponse = System.currentTimeMillis();
                 String data = breader.readLine();
                 if (data == null) {
                     break;
@@ -85,8 +94,9 @@ public class SocketHandler implements AutoCloseable {
     }
 
     private void speakToWriter(OutputStreamWriter writer) {
-        while (true) {
+        while (!reconnect) {
             try {
+                alive = true;
                 Message m = outputMessages.take();
                 try {
                     writer.write(m + "\n");
@@ -95,6 +105,7 @@ public class SocketHandler implements AutoCloseable {
                         logger.messageOut("speakToNode(nodeId: " + addressId + ")",
                                 String.format("SENT from %d to %d: %s", senderId, addressId, m));
                 } catch (IOException ioe) {
+                    alive = false;
                     logger.error("speakToNode(nodeId: " + addressId + ")",
                             String.format("Couldn't send a message from %d to %d. Retrying.",
                                     this.addressId, addressId));
@@ -102,6 +113,7 @@ public class SocketHandler implements AutoCloseable {
                     break;
                 }
             } catch (InterruptedException e) {
+                alive = false;
                 e.printStackTrace();
             }
         }
@@ -119,12 +131,14 @@ public class SocketHandler implements AutoCloseable {
             int port = Config.getPort(addressId);
             while (true) {
                 try {
+                    alive = false;
                     resetOutput(new Socket());
                     Socket clientSocket = output;
                     clientSocket.connect(new InetSocketAddress(address, port));
                     logger.connection("speakToNode(nodeId: " + addressId + ")",
                             String.format("#%d: CONNECTED to node.%d", this.addressId, addressId));
                     outputMessages.addFirst(new NodeMessage(senderId));
+                    reconnect = false;
                     speakToWriter(new OutputStreamWriter(clientSocket.getOutputStream(), CHARSET));
                 } catch (IOException e) {
                     logger.error("speakToNode(nodeId: " + addressId + ")",
@@ -141,12 +155,16 @@ public class SocketHandler implements AutoCloseable {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         resetInput(null);
         resetOutput(null);
     }
 
     public void send(Message m) {
         outputMessages.add(m);
+    }
+
+    public void setReconnect() {
+        reconnect = true;
     }
 }

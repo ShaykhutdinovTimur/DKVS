@@ -2,7 +2,9 @@ package dkvs.web;
 
 import dkvs.Config;
 import dkvs.Logger;
+import dkvs.messages.DisconnectMessage;
 import dkvs.messages.Message;
+import dkvs.messages.Ping;
 import dkvs.messages.replicaAdressed.ClientRequest;
 
 import java.io.BufferedReader;
@@ -10,10 +12,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.LinkedBlockingDeque;
+
 
 public class ConnectionHandler {
 
@@ -21,14 +25,14 @@ public class ConnectionHandler {
     private Logger logger;
     private LinkedBlockingDeque<Message> incomingMessages;
     private List<LinkedBlockingDeque<Message>> outcomingMessages;
-    private List<SocketHandler> nodes;
+    private SocketHandler[] nodes;
     private HashMap<Integer, SocketHandler> clients;
     private int id;
     private ServerSocket inSocket = null;
     private volatile boolean started = false;
     private volatile boolean stopping = false;
     private int clientID = Config.getNodesCount();
-    //private Timer timer;
+    private Timer timer;
 
 
     public ConnectionHandler(int nodeId, Logger logger, LinkedBlockingDeque<Message> incoming,
@@ -41,14 +45,14 @@ public class ConnectionHandler {
         this.logger = logger;
         try {
             inSocket = new ServerSocket(Config.getPort(id));
-            nodes = new ArrayList<>(Config.getNodesCount());
+            nodes = new SocketHandler[Config.getNodesCount()];
             logger = new Logger(id);
 
             for (int i = 0; i < Config.getNodesCount(); ++i) {
-                nodes.add(new SocketHandler(id, i, null, logger, incomingMessages));
-                nodes.get(i).outputMessages = outcomingMessages.get(i);
+                nodes[i] = new SocketHandler(id, i, null, logger, incomingMessages);
+                nodes[i].outputMessages = outcomingMessages.get(i);
             }
-            nodes.get(id).outputMessages = incomingMessages;
+            nodes[id].outputMessages = incomingMessages;
         } catch (IOException e) {
             logger.error("Node()", e.getMessage());
         }
@@ -73,24 +77,7 @@ public class ConnectionHandler {
                 } catch (IOException e) {
                 }
         }).start();
-        /*
-        TimerTask pingTask = new TimerTask() {
-            @Override
-            public void run() {
-                pingIfIdle();
-            }
-        };
-
-        TimerTask monitorFaultsTask = new TimerTask() {
-            @Override
-            public void run() {
-                monitorFaults();
-            }
-        };
-
-        timer.scheduleAtFixedRate(pingTask, Config.getTimeout(), Config.getTimeout());
-        timer.scheduleAtFixedRate(monitorFaultsTask, 4 * Config.getTimeout(), 4 * Config.getTimeout());
-        */
+        startTimer();
     }
 
     private void handleRequest(Socket client) {
@@ -105,8 +92,8 @@ public class ConnectionHandler {
             switch (parts[0]) {
                 case "node":
                     int nodeId = Integer.parseInt(parts[1]);
-                    nodes.get(nodeId).resetInput(client);
-                    nodes.get(nodeId).listen(bufferedReader);
+                    nodes[nodeId].resetInput(client);
+                    nodes[nodeId].listen(bufferedReader);
                     logger.connection("handleRequest(node:" + nodeId + ")",
                             String.format("#%d: Started listening to node.%d from %s", id, nodeId, client.getInetAddress()));
 
@@ -148,42 +135,31 @@ public class ConnectionHandler {
         }
     }
 
-
-    /*private void pingIfIdle() {
-
-        nodes.stream()
-                .filter(it -> (it. != id))
-                .filter(it -> it.getValue().ready)
-                .forEach(it -> {
-                    if (!it.getValue().outputAlive)
-                        sendToNode(it.getKey(), new Ping(id));
-                    it.getValue().outputAlive = false;
-                });
-    }
-
-    private void monitorFaults() {
-        HashSet<Integer> faultyNodes = new HashSet<>();
-
-        nodes.entrySet().stream()
-                .filter(it -> it.getKey() != id)
-                .forEach(it -> {
-                    if (!it.getValue().inputAlive) {
-                        if (it.getValue().input != null)
-                            try {
-                                it.getValue().input.close();
-                            } catch (IOException e) {
-                            }
-                        faultyNodes.add(it.getKey());
-                        logger.connection("monitorFaults()", "Node " + it.getKey() + " is faulty, closing its connection.");
+    private void startTimer() {
+        timer = new Timer();
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                for (int i = 0; i < Config.getNodesCount(); i++) {
+                    if (nodes[i] != null && nodes[i].alive) {
+                        if (System.currentTimeMillis() - nodes[i].getLastResponse() > Config.getTimeout()) {
+                            nodes[i].send(new Ping(id));
+                        }
+                        if (System.currentTimeMillis() - nodes[i].getLastResponse() > 2 * Config.getTimeout()) {
+                            System.out.println("Breaking connection with " + i);
+                            nodes[i].close();
+                            nodes[i] = null;
+                            incomingMessages.add(new DisconnectMessage(i));
+                        }
                     }
-                    it.getValue().inputAlive = false;
-                });
-
-        if (faultyNodes.size() > 0) {
-            for (int i : faultyNodes) {
-                incomingMessages.add(new DisconnectMessage(i));
+                }
+                for (int i = 0; i < Config.getNodesCount(); i++) {
+                    if (i != id && System.currentTimeMillis() - nodes[i].getLastResponse() > 5 * Config.getTimeout()) {
+                        nodes[i].close();
+                        nodes[i].setReconnect();
+                    }
+                }
             }
-        }
-    }*/
-
+        }, 0, Config.getTimeout());
+    }
 }

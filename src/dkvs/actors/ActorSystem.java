@@ -27,17 +27,17 @@ public class ActorSystem {
 
     private HashMap<Integer, SocketHandler> clients;
 
-    public ActorSystem(int id, Logger logger, LinkedBlockingDeque<Message> incomingMessages,
+    public ActorSystem(int id, LinkedBlockingDeque<Message> incomingMessages,
                        List<LinkedBlockingDeque<Message>> outcomingMessages,
                        HashMap<Integer, SocketHandler> clients) {
-        this.logger = logger;
+        this.logger = new Logger(id);
         this.id = id;
         this.incomingMessages = incomingMessages;
         this.outcomingMessages = outcomingMessages;
         this.clients = clients;
-        replica = new Replica(id, logger, this);
-        leader = new Leader(id, logger, this);
-        acceptor = new Acceptor(id, logger, this);
+        replica = new Replica(id, this);
+        leader = new Leader(id, this);
+        acceptor = new Acceptor(id, this);
         leader.startLeader();
         new Thread(this::handleMessages).start();
     }

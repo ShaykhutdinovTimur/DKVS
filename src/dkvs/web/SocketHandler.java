@@ -25,17 +25,17 @@ public class SocketHandler implements AutoCloseable {
     LinkedBlockingDeque<Message> inputMessages;
     Logger logger;
     long lastResponse;
-    boolean alive = false;
-    volatile boolean reconnect = false;
+    private boolean alive = false;
+    private volatile boolean close = false;
     private int senderId, addressId;
 
-    public SocketHandler(int from, int to, Socket inputSocket, Logger logger, LinkedBlockingDeque<Message> inputMessages) {
+    public SocketHandler(int from, int to, Socket inputSocket, LinkedBlockingDeque<Message> inputMessages) {
         senderId = from;
         addressId = to;
         input = inputSocket;
         this.inputMessages = inputMessages;
         lastResponse = System.currentTimeMillis();
-        this.logger = logger;
+        this.logger = new Logger(from);
         if (from != to) {
             new Thread(() -> {
                 speak();
@@ -94,7 +94,7 @@ public class SocketHandler implements AutoCloseable {
     }
 
     private void speakToWriter(OutputStreamWriter writer) {
-        while (!reconnect) {
+        while (!close) {
             try {
                 alive = true;
                 Message m = outputMessages.take();
@@ -129,7 +129,7 @@ public class SocketHandler implements AutoCloseable {
             }
         } else {
             int port = Config.getPort(addressId);
-            while (true) {
+            while (!close) {
                 try {
                     alive = false;
                     resetOutput(new Socket());
@@ -138,7 +138,6 @@ public class SocketHandler implements AutoCloseable {
                     logger.connection("speakToNode(nodeId: " + addressId + ")",
                             String.format("#%d: CONNECTED to node.%d", this.addressId, addressId));
                     outputMessages.addFirst(new NodeMessage(senderId));
-                    reconnect = false;
                     speakToWriter(new OutputStreamWriter(clientSocket.getOutputStream(), CHARSET));
                 } catch (IOException e) {
                     logger.error("speakToNode(nodeId: " + addressId + ")",
@@ -156,6 +155,7 @@ public class SocketHandler implements AutoCloseable {
 
     @Override
     public void close() {
+        close = true;
         resetInput(null);
         resetOutput(null);
     }
@@ -164,7 +164,4 @@ public class SocketHandler implements AutoCloseable {
         outputMessages.add(m);
     }
 
-    public void setReconnect() {
-        reconnect = true;
-    }
 }

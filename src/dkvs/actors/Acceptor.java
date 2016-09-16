@@ -18,9 +18,9 @@ public class Acceptor {
     private ActorSystem actorSystem;
     private Logger logger;
 
-    public Acceptor(int id, Logger logger, ActorSystem actorSystem) {
+    public Acceptor(int id, ActorSystem actorSystem) {
         this.id = id;
-        this.logger = logger;
+        this.logger = new Logger(id);
         this.actorSystem = actorSystem;
         this.ballotNumber = new Ballot();
         this.accepted = new HashMap<>();

@@ -25,9 +25,9 @@ public class Replica {
     private HashMap<Command, Integer> awaitingClients = new HashMap<>();
     private HashSet<Command> performed = new HashSet<>();
 
-    public Replica(int id, Logger logger, ActorSystem actorSystem) {
+    public Replica(int id, ActorSystem actorSystem) {
         this.id = id;
-        this.logger = logger;
+        this.logger = new Logger(id);
         this.actorSystem = actorSystem;
         this.stateMachine = new StateMachine(id);
         stateMachine.slotOut++;

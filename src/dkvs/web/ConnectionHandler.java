@@ -35,21 +35,20 @@ public class ConnectionHandler {
     private Timer timer;
 
 
-    public ConnectionHandler(int nodeId, Logger logger, LinkedBlockingDeque<Message> incoming,
+    public ConnectionHandler(int nodeId, LinkedBlockingDeque<Message> incoming,
                              List<LinkedBlockingDeque<Message>> outcoming,
                              HashMap<Integer, SocketHandler> clients) {
         this.id = nodeId;
         this.incomingMessages = incoming;
         this.outcomingMessages = outcoming;
         this.clients = clients;
-        this.logger = logger;
         try {
             inSocket = new ServerSocket(Config.getPort(id));
             nodes = new SocketHandler[Config.getNodesCount()];
             logger = new Logger(id);
 
             for (int i = 0; i < Config.getNodesCount(); ++i) {
-                nodes[i] = new SocketHandler(id, i, null, logger, incomingMessages);
+                nodes[i] = new SocketHandler(id, i, null, incomingMessages);
                 nodes[i].outputMessages = outcomingMessages.get(i);
             }
             nodes[id].outputMessages = incomingMessages;
@@ -102,7 +101,7 @@ public class ConnectionHandler {
                 case "set":
                 case "delete":
                     final int newClientId = clientID++;
-                    SocketHandler entry = new SocketHandler(id, newClientId, client, logger, incomingMessages);
+                    SocketHandler entry = new SocketHandler(id, newClientId, client, incomingMessages);
                     clients.put(newClientId, entry);
                     Message firstMessage = ClientRequest.parse(newClientId, parts);
                     incomingMessages.add(firstMessage);
@@ -141,14 +140,12 @@ public class ConnectionHandler {
             @Override
             public void run() {
                 for (int i = 0; i < Config.getNodesCount(); i++) {
-                    if (nodes[i] != null && nodes[i].alive) {
+                    if (nodes[i] != null && i != id) {
                         if (System.currentTimeMillis() - nodes[i].getLastResponse() > Config.getTimeout()) {
                             nodes[i].send(new Ping(id));
                         }
                         if (System.currentTimeMillis() - nodes[i].getLastResponse() > 2 * Config.getTimeout()) {
-                            System.out.println("Breaking connection with " + i);
-                            nodes[i].close();
-                            nodes[i] = null;
+                            logger.connection(id + "", "Breaking connection with " + i);
                             incomingMessages.add(new DisconnectMessage(i));
                         }
                     }
@@ -156,7 +153,6 @@ public class ConnectionHandler {
                 for (int i = 0; i < Config.getNodesCount(); i++) {
                     if (i != id && System.currentTimeMillis() - nodes[i].getLastResponse() > 5 * Config.getTimeout()) {
                         nodes[i].close();
-                        nodes[i].setReconnect();
                     }
                 }
             }

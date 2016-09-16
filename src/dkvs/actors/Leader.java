@@ -31,10 +31,10 @@ public class Leader {
 
     private int currentLeader = -1;
 
-    public Leader(int id, Logger logger, ActorSystem actorSystem) {
+    public Leader(int id, ActorSystem actorSystem) {
         this.actorSystem = actorSystem;
         this.id = id;
-        this.logger = logger;
+        this.logger = new Logger(id);
         this.acceptorIds = Config.getIds();
         proposals = new HashMap<>();
         currentBallot = new Ballot(0, id);

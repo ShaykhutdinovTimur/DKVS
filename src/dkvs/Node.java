@@ -12,7 +12,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 
 public class Node implements Runnable, AutoCloseable {
-    ConnectionHandler connectionHandler;
+    private ConnectionHandler connectionHandler;
     private ActorSystem actorSystem;
     private Logger logger;
     private LinkedBlockingDeque<Message> incomingMessages;
@@ -35,8 +35,8 @@ public class Node implements Runnable, AutoCloseable {
         }
         clients = new HashMap<>();
         logger = new Logger(id);
-        connectionHandler = new ConnectionHandler(id, logger, incomingMessages, outcomingMessages, clients);
-        actorSystem = new ActorSystem(id, logger, incomingMessages, outcomingMessages, clients);
+        connectionHandler = new ConnectionHandler(id, incomingMessages, outcomingMessages, clients);
+        actorSystem = new ActorSystem(id, incomingMessages, outcomingMessages, clients);
     }
 
     public static void main(String[] args) {

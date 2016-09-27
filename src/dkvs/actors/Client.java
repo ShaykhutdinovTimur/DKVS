@@ -26,23 +26,25 @@ public class Client {
             socket.connect(address);
             System.out.println("connected: " + port);
 
-            OutputStreamWriter socketWriter = new OutputStreamWriter(socket.getOutputStream(), "UTF-8");
-            InputStreamReader socketReader = new InputStreamReader(socket.getInputStream(), "UTF-8");
-            BufferedReader bufferedReader = new BufferedReader(socketReader);
+            try (OutputStreamWriter socketWriter = new OutputStreamWriter(socket.getOutputStream(), "UTF-8");
+                 InputStreamReader socketReader = new InputStreamReader(socket.getInputStream(), "UTF-8");
+                 BufferedReader bufferedReader = new BufferedReader(socketReader)) {
+                while (true) {
+                    String command = reader.readLine();
+                    System.out.println("request: " + command);
+                    if (command == null || command == "") {
+                        socketWriter.close();
+                        return;
+                    }
+                    socketWriter.write(command + "\n");
+                    socketWriter.flush();
 
-            while (true) {
-                String command = reader.readLine();
-                System.out.println("request: " + command);
-                if (command == null) {
-                    socketWriter.close();
-                    return;
+                    String response = bufferedReader.readLine();
+                    System.out.println("response: " + response);
                 }
-
-                socketWriter.write(command + "\n");
-                socketWriter.flush();
-
-                String response = bufferedReader.readLine();
-                System.out.println("response: " + response);
+            } catch (IOException e) {
+                e.printStackTrace();
+                System.exit(1);
             }
         } catch (IOException e) {
             e.printStackTrace();

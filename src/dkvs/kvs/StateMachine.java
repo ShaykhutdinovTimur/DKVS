@@ -39,7 +39,7 @@ public class StateMachine {
         for (String l : lines) {
             String[] parts = l.split(" ");
             String key = parts[4];
-            switch (parts[3]) {
+            switch (parts[2]) {
                 case "set":
                     hashMap.put(key, parts[5]);
                     break;
@@ -48,7 +48,6 @@ public class StateMachine {
                     break;
             }
             slotOut = Math.max(slotOut, Integer.parseInt(parts[1]));
-            break;
         }
         return hashMap;
     }
@@ -81,7 +80,7 @@ public class StateMachine {
             if (request instanceof GetRequest) {
                 String key = ((GetRequest) request).getKey();
                 String value = storage.get(key);
-                return (value == null) ? "NOT_FOUND" : "VALUE ";
+                return (value == null) ? "NOT_FOUND" : "VALUE " + value;
             } else if (request instanceof SetRequest) {
                 storage.put(((SetRequest) request).getKey(), ((SetRequest) request).getValue());
                 return "STORED";

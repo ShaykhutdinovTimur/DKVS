@@ -2,7 +2,6 @@ package dkvs.actors;
 
 import dkvs.Ballot;
 import dkvs.Config;
-import dkvs.Logger;
 import dkvs.messages.Command;
 import dkvs.messages.Proposal;
 import dkvs.messages.acceptorAdressed.PhaseOneRequest;
@@ -21,7 +20,6 @@ import java.util.Map;
 public class Leader {
     private Ballot currentBallot;
     private int id;
-    private Logger logger;
     private ActorSystem actorSystem;
     private List<Integer> acceptorIds;
     private HashMap<Integer, Command> proposals;
@@ -34,7 +32,6 @@ public class Leader {
     public Leader(int id, ActorSystem actorSystem) {
         this.actorSystem = actorSystem;
         this.id = id;
-        this.logger = new Logger(id);
         this.acceptorIds = Config.getIds();
         proposals = new HashMap<>();
         currentBallot = new Ballot(0, id);
@@ -42,12 +39,17 @@ public class Leader {
         scouts = new HashMap<>();
     }
 
+
+    private void log(String message) {
+        System.out.println("Leader " + id + " " + message);
+    }
+
     public void startLeader() {
         startScouting(currentBallot);
     }
 
     public void receiveMessage(LeaderMessage message) {
-        logger.paxos("Leader::receiveMessage()", "pushed message [" + message + "]");
+        log("pushed message [" + message + "]");
 
         if (message instanceof ProposeMessage) {
             if (!proposals.containsKey(((ProposeMessage) message).getSlot())) {
@@ -56,11 +58,10 @@ public class Leader {
                     command(new Proposal(currentBallot, ((ProposeMessage) message).getSlot(),
                             ((ProposeMessage) message).getRequest()));
                 } else {
-                    logger.paxos("Leader::receiveMessage()", "Leader " + id + " IS NOT active.");
+                    log("IS NOT active.");
                 }
             } else {
-                logger.error("Leader::receiveMessage()", "slot " +
-                        ((ProposeMessage) message).getSlot() + " already used!");
+                log("slot " + ((ProposeMessage) message).getSlot() + " already used!");
             }
         } else if (message instanceof PhaseOneResponse) {
             Ballot ballot = ((PhaseOneResponse) message).getOriginalBallot();
@@ -74,17 +75,16 @@ public class Leader {
     }
 
     private void preempted(Ballot b) {
-        logger.paxos(String.format("PREEMPTED: there's ballot %s", b));
+        log("PREEMPTED: there's ballot " + b);
         if (currentBallot.less(b)) {
-            logger.paxos(String.format("LEADER %d is NO MORE active!", id));
-            logger.paxos(String.format("WAITING for %d to fail", b.getLeaderId()));
+            log("WAITING for " + b.getLeaderId() + " to fail");
             currentLeader = b.getLeaderId();
             currentBallot = new Ballot(b.getBallotNum(), id);
         }
     }
 
     private void adopted(Ballot ballot, Map<Integer, Proposal> pvalues) {
-        logger.paxos(String.format("LEADER %d ADOPTED with ballot %s", id, ballot));
+        log("ADOPTED with ballot " + ballot);
 
         for (Map.Entry<Integer, Proposal> entry : pvalues.entrySet()) {
             Integer key = entry.getKey();
@@ -105,7 +105,7 @@ public class Leader {
     }
 
     private void command(Proposal proposal) {
-        logger.paxos(String.format("COMMANDER started for %s", proposal));
+        log("COMMANDER started for " + proposal);
         commanders.put(proposal, new Commander(proposal));
         actorSystem.sendToAll(new PhaseTwoRequest(id, proposal));
     }

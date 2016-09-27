@@ -1,7 +1,6 @@
 package dkvs.web;
 
 import dkvs.Config;
-import dkvs.Logger;
 import dkvs.messages.DisconnectMessage;
 import dkvs.messages.Message;
 import dkvs.messages.Ping;
@@ -22,7 +21,6 @@ import java.util.concurrent.LinkedBlockingDeque;
 public class ConnectionHandler {
 
     private static final String CHARSET = "UTF-8";
-    private Logger logger;
     private LinkedBlockingDeque<Message> incomingMessages;
     private List<LinkedBlockingDeque<Message>> outcomingMessages;
     private SocketHandler[] nodes;
@@ -45,27 +43,28 @@ public class ConnectionHandler {
         try {
             inSocket = new ServerSocket(Config.getPort(id));
             nodes = new SocketHandler[Config.getNodesCount()];
-            logger = new Logger(id);
 
             for (int i = 0; i < Config.getNodesCount(); ++i) {
-                nodes[i] = new SocketHandler(id, i, null, incomingMessages);
-                nodes[i].outputMessages = outcomingMessages.get(i);
+                if (i != id) {
+                    nodes[i] = new SocketHandler(id, i, null, incomingMessages, outcomingMessages.get(i));
+                } else {
+                    nodes[i] = new SocketHandler(id, i, null, incomingMessages, incomingMessages);
+                }
             }
-            nodes[id].outputMessages = incomingMessages;
         } catch (IOException e) {
-            logger.error("Node()", e.getMessage());
+            log(e.getMessage());
         }
     }
 
+
+    private void log(String message) {
+        System.out.println("connection handler " + id + " " + message);
+    }
 
     public void run() {
         if (started)
             throw new IllegalStateException("Cannot start a node twice");
         started = true;
-
-        logger.connection("run()", "starting node");
-
-
         new Thread(() -> {
             while (!stopping)
                 try {
@@ -86,37 +85,33 @@ public class ConnectionHandler {
             String msg = bufferedReader.readLine();
             String[] parts = msg.split(" ");
 
-            logger.messageIn("handleRequest():", "GOT request [" + msg + "]");
+            log("GOT request [" + msg + "]");
 
             switch (parts[0]) {
                 case "node":
                     int nodeId = Integer.parseInt(parts[1]);
                     nodes[nodeId].resetInput(client);
                     nodes[nodeId].listen(bufferedReader);
-                    logger.connection("handleRequest(node:" + nodeId + ")",
-                            String.format("#%d: Started listening to node.%d from %s", id, nodeId, client.getInetAddress()));
-
+                    log("Started listening to node" + nodeId);
                     break;
                 case "get":
                 case "set":
                 case "delete":
                     final int newClientId = clientID++;
-                    SocketHandler entry = new SocketHandler(id, newClientId, client, incomingMessages);
+                    SocketHandler entry = new SocketHandler(id, newClientId, client, incomingMessages, new LinkedBlockingDeque<>());
                     clients.put(newClientId, entry);
                     Message firstMessage = ClientRequest.parse(newClientId, parts);
                     incomingMessages.add(firstMessage);
-                    logger.connection("handleRequest(client:" + newClientId + ")",
-                            String.format("Client %d connected to %d.", newClientId, id));
+                    log("Client " + newClientId + " connected");
                     entry.listen(bufferedReader);
                     break;
                 default:
-                    logger.messageIn("handleRequest( ... )",
-                            "something goes wrong: \"" + parts[0] + "\" received");
+                    log("something wrong: " + parts[0] + " received");
                     break;
             }
 
         } catch (IOException e) {
-            logger.error("handleRequest()", e.getMessage());
+            log(e.getMessage());
         }
     }
 
@@ -124,13 +119,11 @@ public class ConnectionHandler {
         stopping = true;
         inSocket.close();
         for (SocketHandler n : nodes) {
-            if (n.input != null) n.input.close();
-            if (n.output != null) n.output.close();
+            n.close();
         }
 
         for (SocketHandler n : clients.values()) {
-            if (n.input != null) n.input.close();
-            if (n.output != null) n.output.close();
+            n.close();
         }
     }
 
@@ -145,7 +138,7 @@ public class ConnectionHandler {
                             nodes[i].send(new Ping(id));
                         }
                         if (System.currentTimeMillis() - nodes[i].getLastResponse() > 2 * Config.getTimeout()) {
-                            logger.connection(id + "", "Breaking connection with " + i);
+                            log("Breaking connection with " + i);
                             incomingMessages.add(new DisconnectMessage(i));
                         }
                     }

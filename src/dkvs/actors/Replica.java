@@ -1,6 +1,5 @@
 package dkvs.actors;
 
-import dkvs.Logger;
 import dkvs.kvs.StateMachine;
 import dkvs.messages.ClientResponse;
 import dkvs.messages.Command;
@@ -17,7 +16,6 @@ public class Replica {
     private volatile int slotIn;
     private int id;
     private ActorSystem actorSystem;
-    private Logger logger;
     private StateMachine stateMachine;
     private HashSet<Command> requests = new HashSet<>();
     private HashMap<Integer, Command> proposals = new HashMap<>();
@@ -27,7 +25,6 @@ public class Replica {
 
     public Replica(int id, ActorSystem actorSystem) {
         this.id = id;
-        this.logger = new Logger(id);
         this.actorSystem = actorSystem;
         this.stateMachine = new StateMachine(id);
         stateMachine.slotOut++;
@@ -47,7 +44,7 @@ public class Replica {
             Command actualRequestCommand = ((Decision) message).getRequest();
             int actualSlot = ((Decision) message).getSlot();
 
-            logger.paxos("receiveMessage(message)", String.format("DECISION %s", message));
+            log("received DECISION: " + message);
             decisions.put(actualSlot, actualRequestCommand);
 
             while (decisions.containsKey(stateMachine.slotOut)) {
@@ -70,7 +67,7 @@ public class Replica {
     private void propose() {
         while (!requests.isEmpty()) {
             Command command = requests.iterator().next();
-            logger.paxos("propose()", String.format("PROPOSING %s to slot %d", command, slotIn));
+            log("PROPOSING " + command + " to slot " + slotIn);
             if (!decisions.containsKey(slotIn)) {
                 requests.remove(command);
                 proposals.put(slotIn, command);
@@ -81,7 +78,7 @@ public class Replica {
     }
 
     private void perform(Command command) {
-        logger.paxos("perform()", String.format("PERFORMING %s at %d", command, stateMachine.slotOut));
+        log("PERFORMING " + command + " at " + stateMachine.slotOut);
         if (performed.contains(command))
             return;
         if (!(command.getRequest() instanceof GetRequest)) {
@@ -94,5 +91,9 @@ public class Replica {
             }
         }
         performed.add(command);
+    }
+
+    private void log(String message) {
+        System.out.println("Replica " + id + " " + message);
     }
 }

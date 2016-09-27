@@ -14,7 +14,6 @@ import java.util.concurrent.LinkedBlockingDeque;
 public class Node implements Runnable, AutoCloseable {
     private ConnectionHandler connectionHandler;
     private ActorSystem actorSystem;
-    private Logger logger;
     private LinkedBlockingDeque<Message> incomingMessages;
     private List<LinkedBlockingDeque<Message>> outcomingMessages;
     private HashMap<Integer, SocketHandler> clients;
@@ -34,7 +33,6 @@ public class Node implements Runnable, AutoCloseable {
             }
         }
         clients = new HashMap<>();
-        logger = new Logger(id);
         connectionHandler = new ConnectionHandler(id, incomingMessages, outcomingMessages, clients);
         actorSystem = new ActorSystem(id, incomingMessages, outcomingMessages, clients);
     }
@@ -58,7 +56,7 @@ public class Node implements Runnable, AutoCloseable {
         if (started)
             throw new IllegalStateException("Cannot start a node twice");
         started = true;
-        logger.connection("run()", "starting node");
+        System.out.println("starting node " + id);
         connectionHandler.run();
     }
 

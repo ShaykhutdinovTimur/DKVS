@@ -1,7 +1,6 @@
 package dkvs.web;
 
 import dkvs.Config;
-import dkvs.Logger;
 import dkvs.messages.Message;
 import dkvs.messages.NodeMessage;
 import dkvs.messages.Ping;
@@ -19,23 +18,23 @@ import static java.lang.Thread.sleep;
 public class SocketHandler implements AutoCloseable {
 
     private static final String CHARSET = "UTF-8";
-    Socket input = null;
-    Socket output = null;
-    LinkedBlockingDeque<Message> outputMessages = new LinkedBlockingDeque<>();
-    LinkedBlockingDeque<Message> inputMessages;
-    Logger logger;
-    long lastResponse;
-    private boolean alive = false;
+    private Socket input = null;
+    private Socket output = null;
+    private LinkedBlockingDeque<Message> outputMessages;
+    private LinkedBlockingDeque<Message> inputMessages;
+    private long lastResponse;
     private volatile boolean close = false;
     private int senderId, addressId;
 
-    public SocketHandler(int from, int to, Socket inputSocket, LinkedBlockingDeque<Message> inputMessages) {
+    public SocketHandler(int from, int to, Socket inputSocket,
+                         LinkedBlockingDeque<Message> inputMessages,
+                         LinkedBlockingDeque<Message> outputMessages) {
         senderId = from;
         addressId = to;
         input = inputSocket;
         this.inputMessages = inputMessages;
+        this.outputMessages = outputMessages;
         lastResponse = System.currentTimeMillis();
-        this.logger = new Logger(from);
         if (from != to) {
             new Thread(() -> {
                 speak();
@@ -81,13 +80,13 @@ public class SocketHandler implements AutoCloseable {
                 if (m instanceof Ping) {
                     outputMessages.add(new Pong(senderId));
                 } else if (!(m instanceof Pong)) {
-                    logger.messageIn("listen on node" + senderId,
-                            "GOT message [" + m + "] from " + m.getSource());
+                    log("GOT message [" + m + "]");
                     inputMessages.add(m);
                 }
+            } catch (IllegalArgumentException e) {
+                log(e.getMessage());
             } catch (IOException e) {
-                logger.error("listenToNode(nodeId:" + addressId + ")",
-                        addressId + ": " + e.getMessage());
+                log(e.getMessage());
                 break;
             }
         }
@@ -96,24 +95,18 @@ public class SocketHandler implements AutoCloseable {
     private void speakToWriter(OutputStreamWriter writer) {
         while (!close) {
             try {
-                alive = true;
                 Message m = outputMessages.take();
                 try {
                     writer.write(m + "\n");
                     writer.flush();
                     if (!(m instanceof Ping) && !(m instanceof Pong))
-                        logger.messageOut("speakToNode(nodeId: " + addressId + ")",
-                                String.format("SENT from %d to %d: %s", senderId, addressId, m));
+                        log("SENT " + m);
                 } catch (IOException ioe) {
-                    alive = false;
-                    logger.error("speakToNode(nodeId: " + addressId + ")",
-                            String.format("Couldn't send a message from %d to %d. Retrying.",
-                                    this.addressId, addressId));
+                    log("Couldn't send a message. Retrying.");
                     outputMessages.put(m);
                     break;
                 }
             } catch (InterruptedException e) {
-                alive = false;
                 e.printStackTrace();
             }
         }
@@ -131,18 +124,14 @@ public class SocketHandler implements AutoCloseable {
             int port = Config.getPort(addressId);
             while (!close) {
                 try {
-                    alive = false;
                     resetOutput(new Socket());
                     Socket clientSocket = output;
                     clientSocket.connect(new InetSocketAddress(address, port));
-                    logger.connection("speakToNode(nodeId: " + addressId + ")",
-                            String.format("#%d: CONNECTED to node.%d", this.addressId, addressId));
+                    log("CONNECTED");
                     outputMessages.addFirst(new NodeMessage(senderId));
                     speakToWriter(new OutputStreamWriter(clientSocket.getOutputStream(), CHARSET));
                 } catch (IOException e) {
-                    logger.error("speakToNode(nodeId: " + addressId + ")",
-                            String.format("Connection from %d to node.%d lost: %s",
-                                    addressId, addressId, e.getMessage()));
+                    log("Connection lost " + e.getMessage());
                     try {
                         sleep(Config.getTimeout());
                     } catch (InterruptedException e1) {
@@ -158,6 +147,11 @@ public class SocketHandler implements AutoCloseable {
         close = true;
         resetInput(null);
         resetOutput(null);
+    }
+
+
+    private void log(String message) {
+        System.out.println("Socket handler " + senderId + " to " + addressId + " " + message);
     }
 
     public void send(Message m) {

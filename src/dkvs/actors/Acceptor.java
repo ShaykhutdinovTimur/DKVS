@@ -1,7 +1,6 @@
 package dkvs.actors;
 
 import dkvs.Ballot;
-import dkvs.Logger;
 import dkvs.messages.Proposal;
 import dkvs.messages.acceptorAdressed.AcceptorMessage;
 import dkvs.messages.acceptorAdressed.PhaseOneRequest;
@@ -16,28 +15,30 @@ public class Acceptor {
     private Ballot ballotNumber;
     private HashMap<Integer, Proposal> accepted;
     private ActorSystem actorSystem;
-    private Logger logger;
 
     public Acceptor(int id, ActorSystem actorSystem) {
         this.id = id;
-        this.logger = new Logger(id);
         this.actorSystem = actorSystem;
         this.ballotNumber = new Ballot();
         this.accepted = new HashMap<>();
+    }
+
+    private void log(String message) {
+        System.out.println("Acceptor " + id + " " + message);
     }
 
     public void receiveMessage(AcceptorMessage message) {
         if (message instanceof PhaseOneRequest) {
             if (ballotNumber.less(message.getBallotNum())) {
                 ballotNumber = message.getBallotNum();
-                logger.paxos("receiveMessage() in acceptor " + id, "ACCEPTOR ADOPTED " + ballotNumber);
+                log("ADOPTED " + ballotNumber);
             }
             actorSystem.sendToNode(message.getSource(),
                     new PhaseOneResponse(id, message.getBallotNum(), ballotNumber, accepted.values()));
         } else if (message instanceof PhaseTwoRequest) {
             if (((PhaseTwoRequest) message).getPayload().getBallotNum().equals(ballotNumber)) {
                 accepted.put(((PhaseTwoRequest) message).getPayload().getSlot(), ((PhaseTwoRequest) message).getPayload());
-                logger.paxos("receiveMessage() in acceptor " + id, "ACCEPTOR ACCEPTED " + ballotNumber);
+                log("ACCEPTED " + ballotNumber);
             }
             actorSystem.sendToNode(message.getSource(),
                     new PhaseTwoResponse(id, ballotNumber, ((PhaseTwoRequest) message).getPayload()));

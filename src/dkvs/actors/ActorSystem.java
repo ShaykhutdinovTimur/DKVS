@@ -1,7 +1,6 @@
 package dkvs.actors;
 
 import dkvs.Config;
-import dkvs.Logger;
 import dkvs.messages.DisconnectMessage;
 import dkvs.messages.Message;
 import dkvs.messages.acceptorAdressed.AcceptorMessage;
@@ -18,8 +17,6 @@ public class ActorSystem {
     private Replica replica;
     private Acceptor acceptor;
     private Leader leader;
-
-    private Logger logger;
     private int id;
 
     private LinkedBlockingDeque<Message> incomingMessages;
@@ -30,7 +27,6 @@ public class ActorSystem {
     public ActorSystem(int id, LinkedBlockingDeque<Message> incomingMessages,
                        List<LinkedBlockingDeque<Message>> outcomingMessages,
                        HashMap<Integer, SocketHandler> clients) {
-        this.logger = new Logger(id);
         this.id = id;
         this.incomingMessages = incomingMessages;
         this.outcomingMessages = outcomingMessages;
@@ -46,8 +42,6 @@ public class ActorSystem {
         while (true) {
             try {
                 Message m = incomingMessages.take();
-
-                logger.messageIn("handleMessages()", String.format("Handling message %s on %d from %d", m, id, m.getSource()));
                 if (m instanceof DisconnectMessage) {
                     leader.notifyFault(m.getSource());
                 } else if (m instanceof ReplicaMessage) {
@@ -57,9 +51,8 @@ public class ActorSystem {
                 } else if (m instanceof AcceptorMessage) {
                     acceptor.receiveMessage((AcceptorMessage) m);
                 } else {
-                    logger.messageIn("handleMessages()", String.format("Unknown message: %s", m));
+                    System.out.println("Unknown message handled on " + id + " : " + m);
                 }
-
             } catch (InterruptedException e) {
                 e.printStackTrace();
                 break;

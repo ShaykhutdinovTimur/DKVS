@@ -121,7 +121,6 @@ public class ConnectionHandler {
         for (SocketHandler n : nodes) {
             n.close();
         }
-
         for (SocketHandler n : clients.values()) {
             n.close();
         }
@@ -133,19 +132,14 @@ public class ConnectionHandler {
             @Override
             public void run() {
                 for (int i = 0; i < Config.getNodesCount(); i++) {
-                    if (nodes[i] != null && i != id) {
-                        if (System.currentTimeMillis() - nodes[i].getLastResponse() > Config.getTimeout()) {
+                    if (i != id) {
+                        if (System.currentTimeMillis() - nodes[i].getLastResponse() > 2 * Config.getTimeout()) {
+                            log("closed connection with " + i);
+                            incomingMessages.add(new DisconnectMessage(i));
+                        } else if (System.currentTimeMillis() - nodes[i].getLastResponse() > Config.getTimeout()) {
+                            log("ping " + i);
                             nodes[i].send(new Ping(id));
                         }
-                        if (System.currentTimeMillis() - nodes[i].getLastResponse() > 2 * Config.getTimeout()) {
-                            log("Breaking connection with " + i);
-                            incomingMessages.add(new DisconnectMessage(i));
-                        }
-                    }
-                }
-                for (int i = 0; i < Config.getNodesCount(); i++) {
-                    if (i != id && System.currentTimeMillis() - nodes[i].getLastResponse() > 5 * Config.getTimeout()) {
-                        nodes[i].close();
                     }
                 }
             }

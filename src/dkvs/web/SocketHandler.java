@@ -23,7 +23,7 @@ public class SocketHandler implements AutoCloseable {
     private LinkedBlockingDeque<Message> outputMessages;
     private LinkedBlockingDeque<Message> inputMessages;
     private long lastResponse;
-    private volatile boolean close = false;
+    private volatile boolean isClose;
     private int senderId, addressId;
 
     public SocketHandler(int from, int to, Socket inputSocket,
@@ -34,12 +34,7 @@ public class SocketHandler implements AutoCloseable {
         input = inputSocket;
         this.inputMessages = inputMessages;
         this.outputMessages = outputMessages;
-        lastResponse = System.currentTimeMillis();
-        if (from != to) {
-            new Thread(() -> {
-                speak();
-            }).start();
-        }
+        new Thread(this::speak).start();
     }
 
     public long getLastResponse() {
@@ -93,21 +88,20 @@ public class SocketHandler implements AutoCloseable {
     }
 
     private void speakToWriter(OutputStreamWriter writer) {
-        while (!close) {
+        while (!isClose) {
             try {
                 Message m = outputMessages.take();
                 try {
                     writer.write(m + "\n");
                     writer.flush();
-                    if (!(m instanceof Ping) && !(m instanceof Pong))
-                        log("SENT " + m);
+                    log("SENT " + m);
                 } catch (IOException ioe) {
-                    log("Couldn't send a message. Retrying.");
+                    log("Couldn't send a message " + m + " retrying. " + ioe.getMessage());
                     outputMessages.put(m);
                     break;
                 }
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                log("writer interrupted");
             }
         }
     }
@@ -122,7 +116,7 @@ public class SocketHandler implements AutoCloseable {
             }
         } else {
             int port = Config.getPort(addressId);
-            while (!close) {
+            while (true) {
                 try {
                     resetOutput(new Socket());
                     Socket clientSocket = output;
@@ -131,11 +125,11 @@ public class SocketHandler implements AutoCloseable {
                     outputMessages.addFirst(new NodeMessage(senderId));
                     speakToWriter(new OutputStreamWriter(clientSocket.getOutputStream(), CHARSET));
                 } catch (IOException e) {
-                    log("Connection lost " + e.getMessage());
+                    log(e.getMessage());
                     try {
                         sleep(Config.getTimeout());
                     } catch (InterruptedException e1) {
-                        e1.printStackTrace();
+                        log(e1.getMessage());
                     }
                 }
             }
@@ -144,11 +138,10 @@ public class SocketHandler implements AutoCloseable {
 
     @Override
     public void close() {
-        close = true;
+        isClose = true;
         resetInput(null);
         resetOutput(null);
     }
-
 
     private void log(String message) {
         System.out.println("Socket handler " + senderId + " to " + addressId + " " + message);

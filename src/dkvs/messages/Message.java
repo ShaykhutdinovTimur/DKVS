@@ -47,9 +47,9 @@ public abstract class Message {
             case "delete":
                 return new DeleteRequest(fromId, parts[1]);
             case "disconnect":
-                return new DisconnectMessage(fromId);
+                return new DisconnectMessage(Integer.parseInt(parts[1]));
             default:
-                throw new IllegalArgumentException("Unknown message.");
+                throw new IllegalArgumentException("Unknown message." + parts[0]);
         }
     }
 

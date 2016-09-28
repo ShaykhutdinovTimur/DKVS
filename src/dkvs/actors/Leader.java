@@ -79,7 +79,7 @@ public class Leader {
         if (currentBallot.less(b)) {
             log("WAITING for " + b.getLeaderId() + " to fail");
             currentLeader = b.getLeaderId();
-            currentBallot = new Ballot(b.getBallotNum(), id);
+            currentBallot = new Ballot(b.getBallotNum() + 1, id);
         }
     }
 

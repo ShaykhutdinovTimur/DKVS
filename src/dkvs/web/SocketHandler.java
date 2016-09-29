@@ -34,7 +34,9 @@ public class SocketHandler implements AutoCloseable {
         input = inputSocket;
         this.inputMessages = inputMessages;
         this.outputMessages = outputMessages;
-        new Thread(this::speak).start();
+        if (from != to) {
+            new Thread(this::speak).start();
+        }
     }
 
     public long getLastResponse() {
@@ -52,7 +54,7 @@ public class SocketHandler implements AutoCloseable {
         }
     }
 
-    public void resetOutput(Socket outputSocket) {
+    private void resetOutput(Socket outputSocket) {
         try {
             if (output != null) {
                 output.close();

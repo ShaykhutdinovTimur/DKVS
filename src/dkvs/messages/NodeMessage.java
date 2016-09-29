@@ -8,6 +8,6 @@ public class NodeMessage extends Message {
 
     @Override
     public String toString() {
-        return String.format("node %d", fromId);
+        return "node " + fromId;
     }
 }

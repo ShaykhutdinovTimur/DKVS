@@ -55,7 +55,7 @@ public class StateMachine {
     public String apply(ClientRequest request) {
         String result = keyValueStorage.apply(request);
         if (!(request instanceof GetRequest)) {
-            String s = String.format("slot %d %s", slotOut, request);
+            String s = "slot " + slotOut + " " + request;
             try {
                 writer.write(s);
                 writer.newLine();

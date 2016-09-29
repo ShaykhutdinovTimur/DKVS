@@ -20,7 +20,7 @@ public class SetRequest extends ClientRequest {
 
     @Override
     public String toString() {
-        return String.format("set %d %s %s", fromId, key, value);
+        return "set " + fromId + " " + key + " " + value;
     }
 
     @Override

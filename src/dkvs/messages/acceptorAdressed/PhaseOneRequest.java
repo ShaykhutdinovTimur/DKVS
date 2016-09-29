@@ -9,6 +9,6 @@ public class PhaseOneRequest extends AcceptorMessage {
 
     @Override
     public String toString() {
-        return String.format("p1a %d %s", fromId, ballotNum);
+        return "p1a " + fromId + " " + ballotNum;
     }
 }

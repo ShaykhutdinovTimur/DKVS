@@ -74,7 +74,7 @@ public class ActorSystem {
         try {
             clients.get(to).send(message);
         } catch (NullPointerException e) {
-
+            System.out.println("npe client id: " + to);
         }
     }
 }

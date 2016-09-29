@@ -22,7 +22,7 @@ public class Decision extends ReplicaMessage {
 
     @Override
     public String toString() {
-        return String.format("decision %d %s", slot, request);
+        return "decision " + slot + " " + request;
     }
 
 }

@@ -16,6 +16,6 @@ public class PhaseTwoRequest extends AcceptorMessage {
 
     @Override
     public String toString() {
-        return String.format("p2a %d %s", fromId, payload);
+        return "p2a " + fromId + " " + payload;
     }
 }

@@ -23,7 +23,7 @@ public class Proposal {
 
     @Override
     public String toString() {
-        return String.format("%s %d %s", getBallotNum(), getSlot(), getCommand());
+        return ballotNum + " " + slot + " " + command;
     }
 
     @Override

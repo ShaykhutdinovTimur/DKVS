@@ -23,6 +23,6 @@ public class PhaseTwoResponse extends LeaderMessage {
 
     @Override
     public String toString() {
-        return String.format("p2b %d %s %s", fromId, ballot, proposal);
+        return "p2b " + fromId + " " + ballot + " " + proposal;
     }
 }

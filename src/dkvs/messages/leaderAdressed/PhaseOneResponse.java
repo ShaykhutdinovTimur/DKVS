@@ -47,10 +47,7 @@ public class PhaseOneResponse extends LeaderMessage {
 
     @Override
     public String toString() {
-        return String.format("p1b %d %s %s %s", fromId, originalBallot, ballotNum,
-                pvalues.stream().map(Proposal::toString).collect(Collectors.joining("#"))
-        );
+        return "p1b " + fromId + " " + originalBallot + " " + ballotNum + " " +
+                pvalues.stream().map(Proposal::toString).collect(Collectors.joining("#"));
     }
-
-
 }

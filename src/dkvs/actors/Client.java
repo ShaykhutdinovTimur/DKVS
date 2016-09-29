@@ -15,8 +15,6 @@ public class Client {
             id = Integer.parseInt(args[0]);
 
         String listOfPorts = "4000 4001 4002";
-        System.out.println(listOfPorts + ": picked first");
-
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
 
         try {
@@ -32,7 +30,7 @@ public class Client {
                 while (true) {
                     String command = reader.readLine();
                     System.out.println("request: " + command);
-                    if (command == null || command == "") {
+                    if (command == null || command.equals("")) {
                         socketWriter.close();
                         return;
                     }

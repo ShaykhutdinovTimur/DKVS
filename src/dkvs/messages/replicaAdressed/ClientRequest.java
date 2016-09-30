@@ -11,7 +11,7 @@ public abstract class ClientRequest extends ReplicaMessage {
                 return new GetRequest(clientId, parts[1]);
             case "set":
                 if (parts.length < 3)
-                    throw new IllegalArgumentException("Incorrect SET request");
+                    throw new IllegalArgumentException("Incorrect set request");
                 return new SetRequest(clientId, parts[1], parts[2]);
             case "delete":
                 return new DeleteRequest(clientId, parts[1]);

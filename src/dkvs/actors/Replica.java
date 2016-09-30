@@ -44,7 +44,7 @@ public class Replica {
             Command actualRequestCommand = ((Decision) message).getRequest();
             int actualSlot = ((Decision) message).getSlot();
 
-            log("received DECISION: " + message);
+            log("received decision: " + message);
             decisions.put(actualSlot, actualRequestCommand);
 
             while (decisions.containsKey(stateMachine.slotOut)) {
@@ -67,7 +67,7 @@ public class Replica {
     private void propose() {
         while (!requests.isEmpty()) {
             Command command = requests.iterator().next();
-            log("PROPOSING " + command + " to slot " + slotIn);
+            log("proposing " + command + " to slot " + slotIn);
             if (!decisions.containsKey(slotIn)) {
                 requests.remove(command);
                 proposals.put(slotIn, command);
@@ -78,7 +78,7 @@ public class Replica {
     }
 
     private void perform(Command command) {
-        log("PERFORMING " + command + " at " + stateMachine.slotOut);
+        log("performing " + command + " at " + stateMachine.slotOut);
         if (performed.contains(command))
             return;
         if (!(command.getRequest() instanceof GetRequest)) {

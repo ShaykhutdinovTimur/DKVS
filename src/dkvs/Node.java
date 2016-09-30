@@ -54,7 +54,7 @@ public class Node implements Runnable, AutoCloseable {
     @Override
     public void run() {
         if (started)
-            throw new IllegalStateException("Cannot start a node twice");
+            throw new IllegalStateException("cannot start a node twice");
         started = true;
         System.out.println("starting node " + id);
         connectionHandler.run();

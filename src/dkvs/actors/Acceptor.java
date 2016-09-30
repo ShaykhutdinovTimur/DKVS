@@ -31,14 +31,14 @@ public class Acceptor {
         if (message instanceof PhaseOneRequest) {
             if (ballotNumber.less(message.getBallotNum())) {
                 ballotNumber = message.getBallotNum();
-                log("ADOPTED " + ballotNumber);
+                log("adopted " + ballotNumber);
             }
             actorSystem.sendToNode(message.getSource(),
                     new PhaseOneResponse(id, message.getBallotNum(), ballotNumber, accepted.values()));
         } else if (message instanceof PhaseTwoRequest) {
             if (((PhaseTwoRequest) message).getPayload().getBallotNum().equals(ballotNumber)) {
                 accepted.put(((PhaseTwoRequest) message).getPayload().getSlot(), ((PhaseTwoRequest) message).getPayload());
-                log("ACCEPTED " + ballotNumber);
+                log("accepted " + ballotNumber);
             }
             actorSystem.sendToNode(message.getSource(),
                     new PhaseTwoResponse(id, ballotNumber, ((PhaseTwoRequest) message).getPayload()));

@@ -41,7 +41,7 @@ public class Leader {
 
 
     private void log(String message) {
-        System.out.println("Leader " + id + " " + message);
+        System.out.println("leader " + id + " " + message);
     }
 
     public void startLeader() {
@@ -58,7 +58,7 @@ public class Leader {
                     command(new Proposal(currentBallot, ((ProposeMessage) message).getSlot(),
                             ((ProposeMessage) message).getRequest()));
                 } else {
-                    log("IS NOT active.");
+                    log("is not active.");
                 }
             } else {
                 log("slot " + ((ProposeMessage) message).getSlot() + " already used!");
@@ -75,16 +75,16 @@ public class Leader {
     }
 
     private void preempted(Ballot b) {
-        log("PREEMPTED: there's ballot " + b);
+        log("preempted: there's ballot " + b);
         if (currentBallot.less(b)) {
-            log("WAITING for " + b.getLeaderId() + " to fail");
+            log("waining for " + b.getLeaderId() + " to fail");
             currentLeader = b.getLeaderId();
             currentBallot = new Ballot(b.getBallotNum() + 1, id);
         }
     }
 
     private void adopted(Ballot ballot, Map<Integer, Proposal> pvalues) {
-        log("ADOPTED with ballot " + ballot);
+        log("adopted with ballot " + ballot);
 
         for (Map.Entry<Integer, Proposal> entry : pvalues.entrySet()) {
             Integer key = entry.getKey();
@@ -105,7 +105,7 @@ public class Leader {
     }
 
     private void command(Proposal proposal) {
-        log("COMMANDER started for " + proposal);
+        log("commander started for " + proposal);
         commanders.put(proposal, new Commander(proposal));
         actorSystem.sendToAll(new PhaseTwoRequest(id, proposal));
     }

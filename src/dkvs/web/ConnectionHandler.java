@@ -63,7 +63,7 @@ public class ConnectionHandler {
 
     public void run() {
         if (started)
-            throw new IllegalStateException("Cannot start a node twice");
+            throw new IllegalStateException("cannot start a node twice");
         started = true;
         new Thread(() -> {
             while (!stopping)
@@ -85,14 +85,14 @@ public class ConnectionHandler {
             String msg = bufferedReader.readLine();
             String[] parts = msg.split(" ");
 
-            log("GOT request [" + msg + "]");
+            log("got request [" + msg + "]");
 
             switch (parts[0]) {
                 case "node":
                     int nodeId = Integer.parseInt(parts[1]);
                     nodes[nodeId].resetInput(client);
                     nodes[nodeId].listen(bufferedReader);
-                    log("Started listening to node" + nodeId);
+                    log("started listening to node" + nodeId);
                     break;
                 case "get":
                 case "set":
@@ -102,7 +102,7 @@ public class ConnectionHandler {
                     clients.put(newClientId, entry);
                     Message firstMessage = ClientRequest.parse(newClientId, parts);
                     incomingMessages.add(firstMessage);
-                    log("Client " + newClientId + " connected");
+                    log("client " + newClientId + " connected");
                     entry.listen(bufferedReader);
                     break;
                 default:

@@ -1,0 +1,4 @@
+slot 0 set 3 1 1
+slot 1 set 3 1 2
+slot 2 set 3 x 10
+slot 3 set 3 x 20

@@ -77,7 +77,7 @@ public class SocketHandler implements AutoCloseable {
                 if (m instanceof Ping) {
                     outputMessages.add(new Pong(senderId));
                 } else if (!(m instanceof Pong)) {
-                    log("GOT message [" + m + "]");
+                    log("got message [" + m + "]");
                     inputMessages.add(m);
                 }
             } catch (IllegalArgumentException e) {
@@ -96,9 +96,9 @@ public class SocketHandler implements AutoCloseable {
                 try {
                     writer.write(m + "\n");
                     writer.flush();
-                    log("SENT " + m);
+                    log("sent " + m);
                 } catch (IOException ioe) {
-                    log("Couldn't send a message " + m + " retrying. " + ioe.getMessage());
+                    log("couldn't send a message " + m + " retrying. " + ioe.getMessage());
                     outputMessages.put(m);
                     break;
                 }
@@ -123,7 +123,7 @@ public class SocketHandler implements AutoCloseable {
                     resetOutput(new Socket());
                     Socket clientSocket = output;
                     clientSocket.connect(new InetSocketAddress(address, port));
-                    log("CONNECTED");
+                    log("connected");
                     outputMessages.addFirst(new NodeMessage(senderId));
                     speakToWriter(new OutputStreamWriter(clientSocket.getOutputStream(), CHARSET));
                 } catch (IOException e) {
@@ -146,7 +146,7 @@ public class SocketHandler implements AutoCloseable {
     }
 
     private void log(String message) {
-        System.out.println("Socket handler " + senderId + " to " + addressId + " " + message);
+        System.out.println("socket handler " + senderId + " to " + addressId + " " + message);
     }
 
     public void send(Message m) {
